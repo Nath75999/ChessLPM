@@ -9,7 +9,8 @@
 #include <array>
 
 #include "calculBoard.hpp"
-#include "piece.hpp"
+#include "pieces.hpp"
+#include "../promotion/visualPromotion.hpp"
 
 class VisualBoard : public QWidget{
     
@@ -32,11 +33,18 @@ class VisualBoard : public QWidget{
         int pixelToCase(int x, int y);
 
 
+    public slots:
+        void changePMS(bool show, int color); //promotion menu
+
+
     protected:
         void paintEvent(QPaintEvent*) override;
 
     private:
         CalculBoard cboard;
+
+        VisualPromotion* vPromotion;
+
         QPixmap boardTexture;
         std::array<std::array<QPixmap, 7>, 2> pieceTextures;
         

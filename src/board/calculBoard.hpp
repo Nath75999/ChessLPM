@@ -3,10 +3,14 @@
 #include <array>
 #include <string>
 
-#include "piece.hpp"
+#include <QObject>
+
+#include "pieces.hpp"
 
 
-class CalculBoard{
+class CalculBoard : public QObject{
+    Q_OBJECT
+
     public:
         CalculBoard();
 
@@ -36,6 +40,13 @@ class CalculBoard{
 
         bool kingMove(int currentId, int newId);
 
+
+    signals:
+        void setPromotionMenu(bool show, int color);
+
+    public slots:
+        //recoit le signal de calculPromotion.hpp pour changer le pion promu en une piece donnée ->int par les macros définies
+        void promoteTo(int piece);
 
     private:
         std::array<int, 64> board;

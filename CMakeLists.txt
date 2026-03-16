@@ -8,7 +8,7 @@
 
         # 1 - En une ligne:
 
-            # rm -rf build; cmake -B build -S .; cmake --build build; ./build/Chess
+            # rm -rf build; cmake -B build -S .; cmake --build build; ./build/ChessLPM
 
         # 2 - En plusieurs étapes:
             # rm -rf build (si nécessaire)
@@ -21,18 +21,18 @@
 
             # cd build
 
-            # ./Chess
+            # ./ChessLPM
 
 
 cmake_minimum_required(VERSION 3.20...3.30)
 
-project(Chess LANGUAGES CXX)
+project(ChessLPM LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)   # garde-le, mais on va l'utiliser en combo
+set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
@@ -48,28 +48,28 @@ file(GLOB_RECURSE SOURCES
 # Traitement EXPLICITE des ressources
 qt_add_resources(RESOURCES_SOURCES resources.qrc)
 
-qt_add_executable(Chess
+qt_add_executable(ChessLPM
     main.cpp
     ${SOURCES}
-    ${RESOURCES_SOURCES}     # ← clé : on ajoute les .cpp générés par rcc
+    ${RESOURCES_SOURCES}
 )
 
-target_include_directories(Chess PRIVATE
+target_include_directories(ChessLPM PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board
     ${CMAKE_CURRENT_SOURCE_DIR}/src/board/pieces
     ${CMAKE_CURRENT_SOURCE_DIR}/ui
 )
 
-target_link_libraries(Chess PRIVATE
+target_link_libraries(ChessLPM PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
 )
 
 # Copie images (pour debug si besoin)
-add_custom_command(TARGET Chess POST_BUILD
+add_custom_command(TARGET ChessLPM POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/images
-        $<TARGET_FILE_DIR:Chess>/images
+        $<TARGET_FILE_DIR:ChessLPM>/images
 )

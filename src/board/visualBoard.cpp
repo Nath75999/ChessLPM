@@ -1,7 +1,24 @@
 #include "visualBoard.hpp"
 
-VisualBoard::VisualBoard(QWidget* origin) : cboard(), caseSize(100), dragging(false), caseSelected(-1) {
+VisualBoard::VisualBoard(QWidget* origin) : QWidget(origin), cboard(), vPromotion(), 
+                                            caseSize(100), dragging(false), caseSelected(-1) {
     this->loadTextures();
+
+    std::array<QPixmap, 8> vPromotionSprites = {pieceTextures[WHITE][QUEEN], 
+                                                pieceTextures[WHITE][ROOK],
+                                                pieceTextures[WHITE][BISHOP],
+                                                pieceTextures[WHITE][KNIGHT],
+                                                pieceTextures[BLACK][QUEEN], 
+                                                pieceTextures[BLACK][ROOK],
+                                                pieceTextures[BLACK][BISHOP],
+                                                pieceTextures[BLACK][KNIGHT]};
+
+    this->vPromotion = new VisualPromotion(this, vPromotionSprites);
+    this->vPromotion->hide();
+    this->vPromotion->raise();
+    connect(&cboard, &CalculBoard::setPromotionMenu, this, &VisualBoard::changePMS);
+
+    connect(vPromotion->getCPromotion(), &CalculPromotion::sendNewPiece, &cboard, &CalculBoard::promoteTo);
 }
 
 
@@ -25,13 +42,15 @@ void VisualBoard::loadTextures(){
 
 
 void VisualBoard::mousePressEvent(QMouseEvent* event){
+    if (this->vPromotion->isVisible()) return;
+
     this->dragging = true;
 
     this->caseSelected = this->pixelToCase(event->position().x(), event->position().y());
 }
 
 void VisualBoard::mouseMoveEvent(QMouseEvent* event){
-    if (this->dragging){
+    if (this->dragging && !this->vPromotion->isVisible()){
         this->mouseX = event->position().x();
         this->mouseY = event->position().y();
         update();
@@ -39,6 +58,8 @@ void VisualBoard::mouseMoveEvent(QMouseEvent* event){
 }
 
 void VisualBoard::mouseReleaseEvent(QMouseEvent* event){
+    if (this->vPromotion->isVisible()) return;
+
     this->dragging = false;
 
     int newId = this->pixelToCase(event->position().x(), event->position().y());
@@ -72,7 +93,8 @@ void VisualBoard::paintEvent(QPaintEvent*){
 
     painter.drawPixmap(0, 0, 800, 800, boardTexture);
 
-    bool mouseOutsideBoard = (this->mouseX < 0 || this->mouseX > 8 * caseSize || this->mouseY < 0 || this->mouseY > 8 * caseSize);
+    bool mouseOutsideBoard = (this->mouseX < 0 || this->mouseX > 8 * caseSize ||
+                              this->mouseY < 0 || this->mouseY > 8 * caseSize);
     if (mouseOutsideBoard){
         this->dragging = false;
         this->caseSelected = -1;
@@ -88,9 +110,17 @@ void VisualBoard::paintEvent(QPaintEvent*){
         int y = i / 8;
 
         if (i != this->caseSelected || !this->dragging) 
-            painter.drawPixmap(x * caseSize, y * caseSize, caseSize, caseSize, pieceTextures[piece / 10][piece % 10]);
+            painter.drawPixmap(x * caseSize, y * caseSize, caseSize, 
+                               caseSize, pieceTextures[piece / 10][piece % 10]);
     }
 
     if (this->dragging) 
-        painter.drawPixmap(this->mouseX - caseSize / 2, this->mouseY - caseSize / 2, this->caseSize, caseSize, this->pieceTextures[board[caseSelected] / 10][board[caseSelected] % 10]);
+        painter.drawPixmap(this->mouseX - caseSize / 2, this->mouseY - caseSize / 2, this->caseSize, 
+                           this->caseSize, this->pieceTextures[board[caseSelected] / 10][board[caseSelected] % 10]);
+}
+
+
+void VisualBoard::changePMS(bool show, int color){
+    this->vPromotion->setVisible(show);
+    if (show || (color != WHITE && color != BLACK)) this->vPromotion->setColor(color);
 }
