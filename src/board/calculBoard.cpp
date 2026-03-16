@@ -64,15 +64,17 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
     }
 }
 
-
 void CalculBoard::movePiece(int oldId, int newId){
     int piece = this->board[oldId];
 
-    if (isWLRP && (oldId == 56 || piece % 10 == KING && piece / 10 == WHITE)) isWLRP = false;
+    if (isWLRP && (oldId == 56 || oldId == 60)) isWLRP = false;
     if (isWRRP && (oldId == 63 || oldId == 60)) isWRRP = false;
 
     if (isBLRP && (oldId == 0 || oldId == 4)) isBLRP = false;
     if (isBRRP && (oldId == 7 || oldId == 4)) isBRRP = false;
+
+    if (piece % 10 == PAWN && piece / 10 == WHITE && newId / 8 == 0) emit setPromotionMenu(true, WHITE);
+    if (piece % 10 == PAWN && piece / 10 == BLACK && newId / 8 == 7) emit setPromotionMenu(true, BLACK);
 
     this->board[oldId] = EMPTY;
     this->board[newId] = piece;
@@ -174,4 +176,25 @@ bool CalculBoard::kingMove(int currentId, int newId){
     for (int i = 0; i < 8; i++) if (currentId + kingMoves[i] == newId) return true;
 
     return false;
+}
+
+
+void CalculBoard::promoteTo(int piece){
+     // find pawn to replace when there's a pawn on first or last rank ->promoted
+    for (int i = 0; i < 8; i++){
+        if (this->board[i] % 10 == PAWN && this->board[i] / 10 == WHITE){
+            this->board[i] = 10 * WHITE + piece;
+            emit setPromotionMenu(false, -1);
+            return;
+        }
+    }
+
+    for (int i = 7 * 8; i < 64; i++){
+        if (this->board[i] % 10 == PAWN && this->board[i] / 10 == BLACK){
+            this->board[i] = 10 * BLACK + piece;
+            emit setPromotionMenu(false, -1);
+            return;
+        }
+    }
+    //error, shouldn't go there
 }

@@ -1,6 +1,6 @@
 #include "app.hpp"
 
-App::App(int argc, char* argv[]) : app(argc, argv), window(new QWidget()), vboard(new VisualBoard(window)){
+App::App(int argc, char* argv[]) : app(argc, argv), window(new QWidget()), vboard(new VisualBoard(window)) {
     init();
 }
 
