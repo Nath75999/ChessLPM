@@ -2,11 +2,16 @@
 
 #include <array>
 #include <string>
+#include <algorithm>
 
-#include "piece.hpp"
+#include <QObject>
+
+#include "pieces.hpp"
 
 
-class CalculBoard{
+class CalculBoard : public QObject{
+    Q_OBJECT
+
     public:
         CalculBoard();
 
@@ -14,33 +19,48 @@ class CalculBoard{
         std::array<int, 64> getBoard() const;
 
 
-        std::pair<int, int> caseToIndex(const std::string& c);
+        std::pair<int, int> caseToIndex(const std::string& c) const;
 
 
-        virtual bool isMovePossible(int currentId, int newId);
+        bool isMovePossible(int currentId, int newId);
 
 
-        void movePiece(int currentId, int newId);
+        int movePiece(int currentId, int newId);
 
-        void roque(int king, int ind);
+        int castle(int oldKing, int newKing);
 
 
         void handleMove(int currentId, int newId);
 
 
-        bool pawnMove(int currentId, int newId);
+        bool pawnMove(int currentId, int newId) const;
 
-        bool slideMove(int currentId, int newId, const int dirs[], int dirCount);
+        bool slideMove(int currentId, int newId, const int dirs[], int dirCount) const;
 
-        bool knightMove(int currentId, int newId);
+        bool knightMove(int currentId, int newId) const;
 
         bool kingMove(int currentId, int newId);
 
 
+        bool isCaseAttacked(int idCase, int color) const;
+
+        bool isKingInCheck(int ind) const;
+
+        bool isKingCheckmated(int ind) const;
+
+
+    signals:
+        void setPromotionMenu(bool show, int color);
+
+    public slots:
+        //recoit le signal de calculPromotion.hpp pour changer le pion promu en une piece donnée ->int par les macros définies
+        void promoteTo(int piece);
+
     private:
         std::array<int, 64> board;
-        bool isWLRP;
-        bool isWRRP;
+        int colorPlaying;
+        bool isWLCP;
+        bool isWRCP;
         bool isBLRP;
         bool isBRRP;
 };

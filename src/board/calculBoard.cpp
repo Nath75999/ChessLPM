@@ -1,6 +1,6 @@
 #include "calculBoard.hpp"
 
-CalculBoard::CalculBoard() : board{0}, isWLRP(true), isWRRP(true), isBLRP(true), isBRRP(true) {
+CalculBoard::CalculBoard() : board{0}, colorPlaying(WHITE), isWLCP(true), isWRCP(true), isBLRP(true), isBRRP(true) {
     this->board[0] = 10 * BLACK + ROOK;
     this->board[1] = 10 * BLACK + KNIGHT;
     this->board[2] = 10 * BLACK + BISHOP;
@@ -28,7 +28,7 @@ CalculBoard::CalculBoard() : board{0}, isWLRP(true), isWRRP(true), isBLRP(true),
 std::array<int, 64> CalculBoard::getBoard() const {return this->board;}
 
 
-std::pair<int, int> CalculBoard::caseToIndex(const std::string& c) {return {c[0] - 'a', 8 - static_cast<int>(c[1])};}
+std::pair<int, int> CalculBoard::caseToIndex(const std::string& c) const {return {c[0] - 'a', 8 - static_cast<int>(c[1])};}
 
 bool CalculBoard::isMovePossible(int currentId, int newId){
     if (newId < 0 || newId >= 64) return false;
@@ -39,6 +39,8 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
     if(value == EMPTY) return false;
 
     if(board[newId] != EMPTY && board[newId] / 10 == value / 10) return false;
+
+    if (value / 10 != this->colorPlaying) return false;
 
     switch(value % 10){
         case PAWN:
@@ -63,44 +65,82 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
             return false;
     }
 }
+#include <iostream>
 
-
-void CalculBoard::movePiece(int oldId, int newId){
+int CalculBoard::movePiece(int oldId, int newId){
+    if (oldId < 0 || oldId >= 64 || newId < 0 || newId >= 64) return 1;
+    
     int piece = this->board[oldId];
+    int backupPiece = this->board[newId];
 
-    if (isWLRP && (oldId == 56 || piece % 10 == KING && piece / 10 == WHITE)) isWLRP = false;
-    if (isWRRP && (oldId == 63 || oldId == 60)) isWRRP = false;
+    if (piece % 10 == KING && abs(oldId - newId) == 2) return this->castle(oldId, newId);
+
+    this->board[oldId] = EMPTY;
+    this->board[newId] = piece;
+
+    int kingInd = std::distance(this->board.begin(), std::find(this->board.begin(), this->board.end(), 10 * colorPlaying + KING));
+    if (isKingInCheck(kingInd)){
+        std::cout<<"test kingcheck\n";
+        this->board[oldId] = piece;
+        this->board[newId] = backupPiece;
+        return 1;
+    }
+
+    if (isWLCP && (oldId == 56 || oldId == 60)) isWLCP = false;
+    if (isWRCP && (oldId == 63 || oldId == 60)) isWRCP = false;
 
     if (isBLRP && (oldId == 0 || oldId == 4)) isBLRP = false;
     if (isBRRP && (oldId == 7 || oldId == 4)) isBRRP = false;
 
-    this->board[oldId] = EMPTY;
-    this->board[newId] = piece;
+    if (piece % 10 == PAWN && piece / 10 == WHITE && newId / 8 == 0) emit setPromotionMenu(true, WHITE);
+    if (piece % 10 == PAWN && piece / 10 == BLACK && newId / 8 == 7) emit setPromotionMenu(true, BLACK);
+
+    return 0;
 }
 
-void CalculBoard::roque(int king, int ind){
-    int rook = king + (ind ? -4 : 3);
+int CalculBoard::castle(int oldKing, int newKing){
+    int king = board[oldKing];
+    int color = king / 10;
 
-    if (king == 60 && (!ind && this->isWRRP || ind && this->isWLRP)){
-        this->movePiece(king, king + kingRoque[ind]);
-        this->movePiece(rook, rook + rookRoque[ind]);
-        return;
+    if (newKing > oldKing){ //short castle
+        if (!(color ? isWRCP : isBRRP)) return 1;
+
+        for (int i = 1; i < 3; i++) 
+            if (board[oldKing + i] != EMPTY || this->isCaseAttacked(oldKing + i, color)) return 1;
+
+        board[oldKing] = EMPTY;
+        board[newKing] = king;
+
+        board[oldKing + 3] = EMPTY;
+        board[oldKing + 1] = 10 * color + ROOK;
     }
-    if (king == 4 && (!ind && this->isBRRP || ind && this->isBLRP)){
-        this->movePiece(king, king + kingRoque[ind]);
-        this->movePiece(rook, rook + rookRoque[ind]);   
+    else{ //long castle
+        if (!(color ? isWLCP : isBLRP)) return 1;
+
+        for (int i = 1; i < 4; i++)
+            if (board[oldKing - i] != EMPTY || this->isCaseAttacked(oldKing - i, color)) return 1;
+
+        board[oldKing] = EMPTY;
+        board[newKing] = king;
+
+        board[oldKing - 4] = EMPTY;
+        board[oldKing - 1] = 10 * color + ROOK;
     }
+
+    return 0;
 }
 
 
 void CalculBoard::handleMove(int currentId, int newId){
     if (!isMovePossible(currentId, newId) || this->board[currentId] == EMPTY) return;
 
-    this->movePiece(currentId, newId);
+    if (this->movePiece(currentId, newId)) return;
+
+    this->colorPlaying = !this->colorPlaying;
 }
 
 
-bool CalculBoard::pawnMove(int currentId, int newId){
+bool CalculBoard::pawnMove(int currentId, int newId) const {
     int piece = board[currentId];
     int color = piece / 10;
     int dir = (color == WHITE) ? N : S;
@@ -130,7 +170,7 @@ bool CalculBoard::pawnMove(int currentId, int newId){
     return false;
 }
 
-bool CalculBoard::slideMove(int currentId, int newId, const int dirs[], int dirCount){
+bool CalculBoard::slideMove(int currentId, int newId, const int dirs[], int dirCount) const {
     for (int d = 0; d < dirCount; d++){
         int pos = currentId;
 
@@ -160,18 +200,125 @@ bool CalculBoard::slideMove(int currentId, int newId, const int dirs[], int dirC
     return false;
 }
 
-bool CalculBoard::knightMove(int currentId, int newId){
+bool CalculBoard::knightMove(int currentId, int newId) const {
     for (int i = 0; i < 8; i++) if (currentId + knightMoves[i] == newId) return true;
 
     return false;
 }
 
 bool CalculBoard::kingMove(int currentId, int newId){
-    for (int i = 0; i < 2; i++) if (currentId + kingRoque[i] == newId){
-        this->roque(currentId, i);
-        return false;
-    }
+    for (int i = 0; i < 2; i++) if (currentId + kingRoque[i] == newId) return true;
+
     for (int i = 0; i < 8; i++) if (currentId + kingMoves[i] == newId) return true;
 
     return false;
+}
+
+
+void CalculBoard::promoteTo(int piece){
+     // find pawn to replace when there's a pawn on first or last rank ->promoted
+    for (int i = 0; i < 8; i++){
+        if (this->board[i] % 10 == PAWN && this->board[i] / 10 == WHITE){
+            this->board[i] = 10 * WHITE + piece;
+            emit setPromotionMenu(false, -1);
+            return;
+        }
+    }
+
+    for (int i = 7 * 8; i < 64; i++){
+        if (this->board[i] % 10 == PAWN && this->board[i] / 10 == BLACK){
+            this->board[i] = 10 * BLACK + piece;
+            emit setPromotionMenu(false, -1);
+            return;
+        }
+    }
+    //error, shouldn't go there
+}
+
+bool CalculBoard::isCaseAttacked(int idCase, int color) const {
+    if (idCase < 0 || idCase >= 64) return false; //error
+
+    int row = idCase / 8;
+    int col = idCase % 8;
+
+    // PAWNS
+    int pawnDir = (!color) ? -1 : 1;
+    int indPawn1 = idCase + 7 * pawnDir;
+    int indPawn2 = idCase + 9 * pawnDir;
+
+    if (indPawn1 >= 0 && indPawn1 < 64 && std::abs((indPawn1 % 8) - col) == 1 &&
+        board[indPawn1] % 10 == PAWN && board[indPawn1] / 10 != color) 
+        return true;
+    
+    if (indPawn2 >= 0 && indPawn2 < 64 && std::abs((indPawn2 % 8) - col) == 1 &&
+        board[indPawn2] % 10 == PAWN && board[indPawn2] / 10 != color) 
+        return true;
+
+    // KNIGHTS
+    for (int i = 0; i < 8; i++){
+        int c = idCase + knightMoves[i];
+        if (c >= 0 && c < 64 && std::abs((c % 8) - col) <= 2 && 
+            board[c] % 10 == KNIGHT && board[c] / 10 != color)
+            return true;
+    }
+
+    // SLIDING PIECES
+    for (int i = 0; i < 4; i++){
+        // BISHOPS AND QUEENS
+        int c = idCase + bishopDirs[i];
+        while (c >= 0 && c < 64 && std::abs((c % 8) - col) == std::abs((c / 8) - row)){
+            int piece = board[c];
+            if (piece != EMPTY) {
+                if (piece / 10 != color && (piece % 10 == BISHOP || piece % 10 == QUEEN))
+                    return true;
+                break;
+            }
+            c += bishopDirs[i];
+        }
+
+        // ROOKS AND QUEENS
+        c = idCase + rookDirs[i];
+        while (c >= 0 && c < 64) {
+            int piece = board[c];
+
+            int cRow = c / 8;
+            int cCol = c % 8;
+
+            if (cRow != row && cCol != col) break;
+
+            if (piece != EMPTY) {
+                if (piece / 10 != color && (piece % 10 == ROOK || piece % 10 == QUEEN))
+                    return true;
+                break;
+            }
+
+            c += rookDirs[i];
+        }
+    }
+
+    //ENEMY KING
+    for (int i = 0; i < 8; i++) {
+        int c = idCase + kingMoves[i];
+
+        if (c >= 0 && c < 64 && std::abs((c % 8) - col) <= 1 &&
+            board[c] % 10 == KING && board[c] / 10 != color) return true;
+    }
+
+    return false;
+}
+
+bool CalculBoard::isKingInCheck(int ind) const {
+    if (this->board[ind] % 10 != KING) return false;
+
+    return this->isCaseAttacked(ind, this->board[ind] / 10);
+}
+
+bool CalculBoard::isKingCheckmated(int ind) const {
+    if (!this->isKingInCheck(ind)) return false;
+
+    for (int i = 0; i < 8; i++){
+        if (!this->isCaseAttacked(ind + kingMoves[i], this->board[ind] / 10)) return false;
+    }
+
+    return true; //send signal to visual board ->menu or endgame image
 }
