@@ -46,14 +46,18 @@ class CalculBoard : public QObject{
 
         bool isKingInCheck(int ind) const;
 
-        bool isKingCheckmated(int ind) const;
+        bool isKingCheckmated(int ind);
+
+
+        bool hasLegalMoves();
 
 
     signals:
         void setPromotionMenu(bool show, int color);
 
+        void sendEndGame();
+
     public slots:
-        //recoit le signal de calculPromotion.hpp pour changer le pion promu en une piece donnée ->int par les macros définies
         void promoteTo(int piece);
 
     private:

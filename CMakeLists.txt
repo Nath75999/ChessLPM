@@ -6,12 +6,13 @@
 
     # A la racine du projet:
 
+        # rm -rf build (si nécessaire)
+
         # 1 - En une ligne:
 
-            # rm -rf build; cmake -B build -S .; cmake --build build; ./build/ChessLPM
+            # cmake -B build -S .; cmake --build build; ./build/ChessLPM
 
         # 2 - En plusieurs étapes:
-            # rm -rf build (si nécessaire)
 
             # cmake -B build -S .
 
