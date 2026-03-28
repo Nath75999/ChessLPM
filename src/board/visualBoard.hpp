@@ -36,6 +36,8 @@ class VisualBoard : public QWidget{
     public slots:
         void changePMS(bool show, int color); //promotion menu
 
+        void recieveEndGame(); //checkmate occured;
+
 
     protected:
         void paintEvent(QPaintEvent*) override;
@@ -48,6 +50,7 @@ class VisualBoard : public QWidget{
         QPixmap boardTexture;
         std::array<std::array<QPixmap, 7>, 2> pieceTextures;
         
+        bool isGameActive;
         int caseSize;
         bool dragging;
         int caseSelected;

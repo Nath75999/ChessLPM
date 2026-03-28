@@ -1,6 +1,6 @@
 #include "visualBoard.hpp"
 
-VisualBoard::VisualBoard(QWidget* origin) : QWidget(origin), cboard(), vPromotion(), 
+VisualBoard::VisualBoard(QWidget* origin) : QWidget(origin), cboard(), vPromotion(), isGameActive(true),
                                             caseSize(100), dragging(false), caseSelected(-1) {
     this->loadTextures();
 
@@ -19,6 +19,8 @@ VisualBoard::VisualBoard(QWidget* origin) : QWidget(origin), cboard(), vPromotio
     connect(&cboard, &CalculBoard::setPromotionMenu, this, &VisualBoard::changePMS);
 
     connect(vPromotion->getCPromotion(), &CalculPromotion::sendNewPiece, &cboard, &CalculBoard::promoteTo);
+
+    connect(&cboard, &CalculBoard::sendEndGame, this, &VisualBoard::recieveEndGame);
 }
 
 
@@ -91,36 +93,43 @@ int VisualBoard::pixelToCase(int x, int y){
 void VisualBoard::paintEvent(QPaintEvent*){
     QPainter painter(this);
 
-    painter.drawPixmap(0, 0, 800, 800, boardTexture);
+    if (this->isGameActive){
+        painter.drawPixmap(0, 0, 800, 800, boardTexture);
 
-    bool mouseOutsideBoard = (this->mouseX < 0 || this->mouseX > 8 * caseSize ||
-                              this->mouseY < 0 || this->mouseY > 8 * caseSize);
-    if (mouseOutsideBoard){
-        this->dragging = false;
-        this->caseSelected = -1;
+        bool mouseOutsideBoard = (this->mouseX < 0 || this->mouseX > 8 * caseSize ||
+                                this->mouseY < 0 || this->mouseY > 8 * caseSize);
+        if (mouseOutsideBoard){
+            this->dragging = false;
+            this->caseSelected = -1;
+        }
+
+        std::array<int, 64> board = cboard.getBoard();
+
+        for(int i = 0; i < 64; i++){
+            int piece = board[i];
+            if (piece == EMPTY) continue;
+
+            int x = i % 8;
+            int y = i / 8;
+
+            if (i != this->caseSelected || !this->dragging) 
+                painter.drawPixmap(x * caseSize, y * caseSize, caseSize, 
+                                caseSize, pieceTextures[piece / 10][piece % 10]);
+        }
+
+        if (this->dragging) 
+            painter.drawPixmap(this->mouseX - caseSize / 2, this->mouseY - caseSize / 2, this->caseSize, 
+                            this->caseSize, this->pieceTextures[board[caseSelected] / 10][board[caseSelected] % 10]);
     }
-
-    std::array<int, 64> board = cboard.getBoard();
-
-    for(int i = 0; i < 64; i++){
-        int piece = board[i];
-        if (piece == EMPTY) continue;
-
-        int x = i % 8;
-        int y = i / 8;
-
-        if (i != this->caseSelected || !this->dragging) 
-            painter.drawPixmap(x * caseSize, y * caseSize, caseSize, 
-                               caseSize, pieceTextures[piece / 10][piece % 10]);
-    }
-
-    if (this->dragging) 
-        painter.drawPixmap(this->mouseX - caseSize / 2, this->mouseY - caseSize / 2, this->caseSize, 
-                           this->caseSize, this->pieceTextures[board[caseSelected] / 10][board[caseSelected] % 10]);
 }
 
 
 void VisualBoard::changePMS(bool show, int color){
     this->vPromotion->setVisible(show);
     if (show || (color != WHITE && color != BLACK)) this->vPromotion->setColor(color);
+}
+#include <iostream>
+void VisualBoard::recieveEndGame(){
+    this->isGameActive = false;
+    std::cout<<"end game\n";
 }

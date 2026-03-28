@@ -34,7 +34,6 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
     if (newId < 0 || newId >= 64) return false;
 
     int value = this->board[currentId];
-    bool verif = false;
 
     if(value == EMPTY) return false;
 
@@ -65,7 +64,6 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
             return false;
     }
 }
-#include <iostream>
 
 int CalculBoard::movePiece(int oldId, int newId){
     if (oldId < 0 || oldId >= 64 || newId < 0 || newId >= 64) return 1;
@@ -80,7 +78,6 @@ int CalculBoard::movePiece(int oldId, int newId){
 
     int kingInd = std::distance(this->board.begin(), std::find(this->board.begin(), this->board.end(), 10 * colorPlaying + KING));
     if (isKingInCheck(kingInd)){
-        std::cout<<"test kingcheck\n";
         this->board[oldId] = piece;
         this->board[newId] = backupPiece;
         return 1;
@@ -98,36 +95,48 @@ int CalculBoard::movePiece(int oldId, int newId){
     return 0;
 }
 
-int CalculBoard::castle(int oldKing, int newKing){
+int CalculBoard::castle(int oldKing, int newKing) {
     int king = board[oldKing];
     int color = king / 10;
 
-    if (newKing > oldKing){ //short castle
-        if (!(color ? isWRCP : isBRRP)) return 1;
+    bool isShortCastle = (newKing > oldKing);
 
-        for (int i = 1; i < 3; i++) 
-            if (board[oldKing + i] != EMPTY || this->isCaseAttacked(oldKing + i, color)) return 1;
+    if (!this->isCaseAttacked(newKing, color)){
+        if (isShortCastle){
+            if (color == WHITE && !isWRCP || color == BLACK && !isBRRP) return 1;
+
+            for (int i = 1; i < 3; i++)
+                if (board[oldKing + i] != EMPTY || this->isCaseAttacked(oldKing + i, color)) return 1;
+
+        } 
+        else{
+            if (color == WHITE && !isWLCP || color == BLACK && !isBLRP) return 1;
+
+            for (int i = 1; i < 4; i++)
+                if (board[oldKing - i] != EMPTY || this->isCaseAttacked(oldKing - i, color)) return 1;
+        }
 
         board[oldKing] = EMPTY;
         board[newKing] = king;
 
-        board[oldKing + 3] = EMPTY;
-        board[oldKing + 1] = 10 * color + ROOK;
-    }
-    else{ //long castle
-        if (!(color ? isWLCP : isBLRP)) return 1;
+        int rookId = isShortCastle ? oldKing + 3 : oldKing - 4;
+        board[rookId] = EMPTY;
+        board[isShortCastle ? newKing - 1 : newKing + 1] = 10 * color + ROOK;
 
-        for (int i = 1; i < 4; i++)
-            if (board[oldKing - i] != EMPTY || this->isCaseAttacked(oldKing - i, color)) return 1;
+        if (!color){
+            isWLCP = false;
+            isWRCP = false;
+        } 
+        else{
+            isBLRP = false;
+            isBRRP = false;
+        }
 
-        board[oldKing] = EMPTY;
-        board[newKing] = king;
+        this->colorPlaying = !this->colorPlaying;
 
-        board[oldKing - 4] = EMPTY;
-        board[oldKing - 1] = 10 * color + ROOK;
-    }
-
-    return 0;
+        return 0;
+    } 
+    else return 1;
 }
 
 
@@ -137,6 +146,14 @@ void CalculBoard::handleMove(int currentId, int newId){
     if (this->movePiece(currentId, newId)) return;
 
     this->colorPlaying = !this->colorPlaying;
+
+    auto it = std::find(board.begin(), board.end(), 10 * colorPlaying + KING);
+
+    int kingIndex = std::distance(board.begin(), it);
+
+    if (this->isKingCheckmated(kingIndex)){
+        emit sendEndGame();
+    }
 }
 
 
@@ -201,15 +218,26 @@ bool CalculBoard::slideMove(int currentId, int newId, const int dirs[], int dirC
 }
 
 bool CalculBoard::knightMove(int currentId, int newId) const {
-    for (int i = 0; i < 8; i++) if (currentId + knightMoves[i] == newId) return true;
+    int r2 = newId / 8;
+    int c2 = newId % 8;
 
-    return false;
+    if (r2 < 0 || r2 >= 8 || c2 < 0 || c2 >= 8) return false;
+
+    int r1 = currentId / 8;
+    int c1 = currentId % 8;
+
+    int dr = std::abs(r1 - r2);
+    int dc = std::abs(c1 - c2);
+
+    return (dr == 2 && dc == 1) || (dr == 1 && dc == 2);
 }
 
 bool CalculBoard::kingMove(int currentId, int newId){
-    for (int i = 0; i < 2; i++) if (currentId + kingRoque[i] == newId) return true;
+    for (int i = 0; i < 2; i++) 
+        if (currentId + kingRoque[i] == newId) return !castle(currentId, newId); //The '!' is very important, or else smothered chekmate won't be detected
 
-    for (int i = 0; i < 8; i++) if (currentId + kingMoves[i] == newId) return true;
+    for (int i = 0; i < 8; i++) 
+        if (currentId + kingMoves[i] == newId) return true;
 
     return false;
 }
@@ -247,19 +275,16 @@ bool CalculBoard::isCaseAttacked(int idCase, int color) const {
     int indPawn2 = idCase + 9 * pawnDir;
 
     if (indPawn1 >= 0 && indPawn1 < 64 && std::abs((indPawn1 % 8) - col) == 1 &&
-        board[indPawn1] % 10 == PAWN && board[indPawn1] / 10 != color) 
-        return true;
+        board[indPawn1] % 10 == PAWN && board[indPawn1] / 10 != color) return true;
     
     if (indPawn2 >= 0 && indPawn2 < 64 && std::abs((indPawn2 % 8) - col) == 1 &&
-        board[indPawn2] % 10 == PAWN && board[indPawn2] / 10 != color) 
-        return true;
+        board[indPawn2] % 10 == PAWN && board[indPawn2] / 10 != color) return true;
 
     // KNIGHTS
     for (int i = 0; i < 8; i++){
         int c = idCase + knightMoves[i];
         if (c >= 0 && c < 64 && std::abs((c % 8) - col) <= 2 && 
-            board[c] % 10 == KNIGHT && board[c] / 10 != color)
-            return true;
+            board[c] % 10 == KNIGHT && board[c] / 10 != color) return true;
     }
 
     // SLIDING PIECES
@@ -269,8 +294,7 @@ bool CalculBoard::isCaseAttacked(int idCase, int color) const {
         while (c >= 0 && c < 64 && std::abs((c % 8) - col) == std::abs((c / 8) - row)){
             int piece = board[c];
             if (piece != EMPTY) {
-                if (piece / 10 != color && (piece % 10 == BISHOP || piece % 10 == QUEEN))
-                    return true;
+                if (piece / 10 != color && (piece % 10 == BISHOP || piece % 10 == QUEEN)) return true;
                 break;
             }
             c += bishopDirs[i];
@@ -286,9 +310,8 @@ bool CalculBoard::isCaseAttacked(int idCase, int color) const {
 
             if (cRow != row && cCol != col) break;
 
-            if (piece != EMPTY) {
-                if (piece / 10 != color && (piece % 10 == ROOK || piece % 10 == QUEEN))
-                    return true;
+            if (piece != EMPTY){
+                if (piece / 10 != color && (piece % 10 == ROOK || piece % 10 == QUEEN)) return true;
                 break;
             }
 
@@ -313,12 +336,44 @@ bool CalculBoard::isKingInCheck(int ind) const {
     return this->isCaseAttacked(ind, this->board[ind] / 10);
 }
 
-bool CalculBoard::isKingCheckmated(int ind) const {
+bool CalculBoard::isKingCheckmated(int ind){
     if (!this->isKingInCheck(ind)) return false;
 
-    for (int i = 0; i < 8; i++){
-        if (!this->isCaseAttacked(ind + kingMoves[i], this->board[ind] / 10)) return false;
+    return !this->hasLegalMoves(); 
+}
+
+
+bool CalculBoard::hasLegalMoves(){
+    // Check each piece of the current player for legal moves
+    for (int from = 0; from < 64; from++){
+        if (board[from] == EMPTY || board[from] / 10 != this->colorPlaying) continue;
+
+        // Try all possible destination squares
+        for (int to = 0; to < 64; to++){
+            if (!isMovePossible(from, to)) continue;
+
+            // Simulate the move
+            int captured = board[to];
+            int piece = board[from];
+
+            board[to] = piece;
+            board[from] = EMPTY;
+
+            // Find the king and check if it's in check after the move
+            auto it = std::find(board.begin(), board.end(), 10 * this->colorPlaying + KING);
+            int kingIndex = std::distance(board.begin(), it);
+
+            bool kingInCheck = isKingInCheck(kingIndex);
+
+            // Undo the move
+            board[from] = piece;
+            board[to] = captured;
+
+            // If king is not in check, we found a legal move
+            if (!kingInCheck) return true;
+        }
     }
 
-    return true; //send signal to visual board ->menu or endgame image
+    // No legal moves found
+    return false;
 }
