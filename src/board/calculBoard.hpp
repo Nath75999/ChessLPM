@@ -44,9 +44,9 @@ class CalculBoard : public QObject{
 
         bool isCaseAttacked(int idCase, int color) const;
 
-        bool isKingInCheck(int ind) const;
+        bool isKingInCheck(int ind = -1) const;
 
-        bool isKingCheckmated(int ind);
+        bool isKingCheckmated();
 
 
         bool hasLegalMoves();
