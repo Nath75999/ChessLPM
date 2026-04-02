@@ -1,5 +1,4 @@
 #include "calculBoard.hpp"
-#include <iostream>
 
 CalculBoard::CalculBoard() : board{0}, colorPlaying(WHITE), isWLCP(true), isWRCP(true), isBLRP(true), isBRRP(true) {
     this->board[0] = 10 * BLACK + ROOK;
@@ -155,7 +154,6 @@ void CalculBoard::handleMove(int currentId, int newId){
 
     if (this->isKingCheckmated()){
         emit sendEndGame();
-        std::cout<<"test endgame2? wrong signal2?\n";
         return;
     }
 }
@@ -382,16 +380,10 @@ bool CalculBoard::hasLegalMoves(){
             board[from] = piece;
             board[to] = captured;
 
-            if (!kingInCheck) std::cout << "Move possible: " << from << " -> " << to << " with " << piece << "\n";
-
             // If king is not in check, we found a legal move
-            if (!kingInCheck){
-                std::cout<<"there's at least one move possible\n";
-                return true;
-            }
+            if (!kingInCheck) return true;
         }
     }
-    std::cout<<"king checkmated\n";
     // No legal moves found
     return false;
 }
