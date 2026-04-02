@@ -147,12 +147,14 @@ void CalculBoard::handleMove(int currentId, int newId){
 
     this->colorPlaying = !this->colorPlaying;
 
-    auto it = std::find(board.begin(), board.end(), 10 * colorPlaying + KING);
-
-    int kingIndex = std::distance(board.begin(), it);
-
-    if (this->isKingCheckmated(kingIndex)){
+    if (!isKingInCheck() && !hasLegalMoves()){
         emit sendEndGame();
+        return;
+    }
+
+    if (this->isKingCheckmated()){
+        emit sendEndGame();
+        return;
     }
 }
 
@@ -234,7 +236,7 @@ bool CalculBoard::knightMove(int currentId, int newId) const {
 
 bool CalculBoard::kingMove(int currentId, int newId){
     for (int i = 0; i < 2; i++) 
-        if (currentId + kingRoque[i] == newId) return !castle(currentId, newId); //The '!' is very important, or else smothered chekmate won't be detected
+        if (currentId + kingRoque[i] == newId) return !castle(currentId, newId); //The '!' is very important, or else smothered checkmate won't be detected
 
     for (int i = 0; i < 8; i++) 
         if (currentId + kingMoves[i] == newId) return true;
@@ -331,13 +333,22 @@ bool CalculBoard::isCaseAttacked(int idCase, int color) const {
 }
 
 bool CalculBoard::isKingInCheck(int ind) const {
+    if (ind < 0){
+        auto it = std::find(board.begin(), board.end(), 10 * colorPlaying + KING);
+        ind = std::distance(board.begin(), it);
+    }
+    
     if (this->board[ind] % 10 != KING) return false;
 
     return this->isCaseAttacked(ind, this->board[ind] / 10);
 }
 
-bool CalculBoard::isKingCheckmated(int ind){
-    if (!this->isKingInCheck(ind)) return false;
+bool CalculBoard::isKingCheckmated(){
+    auto it = std::find(board.begin(), board.end(), 10 * colorPlaying + KING);
+
+    int kingIndex = std::distance(board.begin(), it);
+
+    if (!this->isKingInCheck(kingIndex)) return false;
 
     return !this->hasLegalMoves(); 
 }
@@ -373,7 +384,6 @@ bool CalculBoard::hasLegalMoves(){
             if (!kingInCheck) return true;
         }
     }
-
     // No legal moves found
     return false;
 }
