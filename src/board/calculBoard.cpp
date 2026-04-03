@@ -152,10 +152,7 @@ void CalculBoard::handleMove(int currentId, int newId){
         return;
     }
 
-    if (this->isKingCheckmated()){
-        emit sendEndGame();
-        return;
-    }
+    if (this->isKingCheckmated()) emit sendEndGame();
 }
 
 
@@ -225,6 +222,8 @@ bool CalculBoard::knightMove(int currentId, int newId) const {
 
     if (r2 < 0 || r2 >= 8 || c2 < 0 || c2 >= 8) return false;
 
+    if (c2 == 7 && newId % 8 == 0 || c2 == 0 && newId % 8 == 7) return false;
+
     int r1 = currentId / 8;
     int c1 = currentId % 8;
 
@@ -239,7 +238,8 @@ bool CalculBoard::kingMove(int currentId, int newId){
         if (currentId + kingRoque[i] == newId) return !castle(currentId, newId); //The '!' is very important, or else smothered checkmate won't be detected
 
     for (int i = 0; i < 8; i++) 
-        if (currentId + kingMoves[i] == newId) return true;
+        if (currentId + kingMoves[i] == newId)
+            return !(currentId % 8 == 0 && newId % 8 == 0 || currentId % 8 == 7 && newId % 8 == 0);
 
     return false;
 }

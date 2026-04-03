@@ -128,8 +128,5 @@ void VisualBoard::changePMS(bool show, int color){
     this->vPromotion->setVisible(show);
     if (show || (color != WHITE && color != BLACK)) this->vPromotion->setColor(color);
 }
-#include <iostream>
-void VisualBoard::recieveEndGame(){
-    this->isGameActive = false;
-    std::cout<<"end game\n";
-}
+
+void VisualBoard::recieveEndGame() {this->isGameActive = false;}
