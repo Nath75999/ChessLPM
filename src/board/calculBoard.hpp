@@ -33,7 +33,7 @@ class CalculBoard : public QObject{
         void handleMove(int currentId, int newId);
 
 
-        bool pawnMove(int currentId, int newId) const;
+        bool pawnMove(int currentId, int newId);
 
         bool slideMove(int currentId, int newId, const int dirs[], int dirCount) const;
 
@@ -63,6 +63,7 @@ class CalculBoard : public QObject{
     private:
         std::array<int, 64> board;
         int colorPlaying;
+        int indEnPassant;
         bool isWLCP;
         bool isWRCP;
         bool isBLRP;

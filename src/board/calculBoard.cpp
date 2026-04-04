@@ -1,6 +1,7 @@
 #include "calculBoard.hpp"
+#include <iostream>
 
-CalculBoard::CalculBoard() : board{0}, colorPlaying(WHITE), isWLCP(true), isWRCP(true), isBLRP(true), isBRRP(true) {
+CalculBoard::CalculBoard() : board{0}, colorPlaying(WHITE), indEnPassant(-1), isWLCP(true), isWRCP(true), isBLRP(true), isBRRP(true) {
     this->board[0] = 10 * BLACK + ROOK;
     this->board[1] = 10 * BLACK + KNIGHT;
     this->board[2] = 10 * BLACK + BISHOP;
@@ -41,6 +42,8 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
 
     if (value / 10 != this->colorPlaying) return false;
 
+    bool testMove = false;
+
     switch(value % 10){
         case PAWN:
             return pawnMove(currentId, newId);
@@ -59,10 +62,12 @@ bool CalculBoard::isMovePossible(int currentId, int newId){
 
         case KING:
             return kingMove(currentId, newId);
+            break;
 
         default:
             return false;
     }
+    return false;
 }
 
 int CalculBoard::movePiece(int oldId, int newId){
@@ -91,6 +96,11 @@ int CalculBoard::movePiece(int oldId, int newId){
 
     if (piece % 10 == PAWN && piece / 10 == WHITE && newId / 8 == 0) emit setPromotionMenu(true, WHITE);
     if (piece % 10 == PAWN && piece / 10 == BLACK && newId / 8 == 7) emit setPromotionMenu(true, BLACK);
+
+    if (piece % 10 == PAWN && newId == indEnPassant) {
+        int dir = (piece / 10 == WHITE) ? N : S;
+        board[indEnPassant - dir] = EMPTY;
+    }
 
     return 0;
 }
@@ -145,42 +155,82 @@ void CalculBoard::handleMove(int currentId, int newId){
 
     if (this->movePiece(currentId, newId)) return;
 
+    if (board[newId] % 10 == PAWN){
+        int dir = (board[newId] / 10 == WHITE) ? N : S;
+        indEnPassant = (currentId + 2 * dir == newId) ? currentId + dir : -1;
+    }
+    else indEnPassant = -1;
+
     this->colorPlaying = !this->colorPlaying;
 
+    //staleeate
     if (!isKingInCheck() && !hasLegalMoves()){
         emit sendEndGame();
         return;
     }
 
+    //checkmate
     if (this->isKingCheckmated()) emit sendEndGame();
 }
 
 
-bool CalculBoard::pawnMove(int currentId, int newId) const {
+bool CalculBoard::pawnMove(int currentId, int newId){
     int piece = board[currentId];
     int color = piece / 10;
     int dir = (color == WHITE) ? N : S;
 
+    int enemyPawnPos = indEnPassant + ((color == WHITE) ? S : N);
+
+    // advance one case
     if (newId == currentId + dir && board[newId] == EMPTY) return true;
 
-    if (color == WHITE){
-        if (currentId / 8 == 6 && newId == currentId + 2 * dir && board[currentId + dir] == EMPTY && board[newId] == EMPTY) 
-            return true;
-    }
+    // advance 2 cases
+    if (color == WHITE && currentId / 8 == 6 && newId == currentId + 2 * dir &&
+        board[currentId + dir] == EMPTY && board[newId] == EMPTY)
+        return true;
 
     if (color == BLACK){
-        if (currentId / 8 == 1 && newId == currentId + 2 * dir && board[currentId + dir] == EMPTY && board[newId] == EMPTY) 
+        if (currentId / 8 == 1 && newId == currentId + 2 * dir &&
+            board[currentId + dir] == EMPTY && board[newId] == EMPTY)
             return true;
     }
 
+    // capture left
     if (currentId % 8 > 0){
         int captureLeft = currentId + dir + W;
-        if (newId == captureLeft && this->board[newId] != EMPTY && board[newId] / 10 != color) return true;
+
+        // normal capture
+        if (newId == captureLeft && board[newId] != EMPTY && board[newId] / 10 != color)
+            return true;
+
+        // en passant LEFT (fixed)
+        if (indEnPassant != -1 &&
+            newId == captureLeft &&
+            newId == indEnPassant &&
+            board[newId] == EMPTY &&
+            board[enemyPawnPos] == 10 * (!color) + PAWN)
+        {
+            return true;
+        }
     }
 
+    // capture right
     if (currentId % 8 < 7){
         int captureRight = currentId + dir + E;
-        if (newId == captureRight && this->board[newId] != EMPTY && board[newId] / 10 != color) return true;
+
+        // normal capture
+        if (newId == captureRight && board[newId] != EMPTY && board[newId] / 10 != color)
+            return true;
+
+        // en passant RIGHT (fixed)
+        if (indEnPassant != -1 &&
+            newId == captureRight &&
+            newId == indEnPassant &&
+            board[newId] == EMPTY &&
+            board[enemyPawnPos] == 10 * (!color) + PAWN)
+        {
+            return true;
+        }
     }
 
     return false;
