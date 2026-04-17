@@ -3,10 +3,12 @@
 #include <array>
 #include <string>
 #include <algorithm>
+#include <fstream>
 
 #include <QObject>
 
 #include "pieces.hpp"
+#include "../tree/tree.hpp"
 
 
 class CalculBoard : public QObject{
@@ -19,7 +21,9 @@ class CalculBoard : public QObject{
         std::array<int, 64> getBoard() const;
 
 
-        std::pair<int, int> caseToIndex(const std::string& c) const;
+        std::string indexToCase(int ind) const;
+
+        std::string moveToPGN(int from, int to, bool hasCaptured, bool hasCheck, bool hasMate, int promotionPiece = 0, int piece = 1);
 
 
         bool isMovePossible(int currentId, int newId);
@@ -52,6 +56,18 @@ class CalculBoard : public QObject{
         bool hasLegalMoves();
 
 
+        std::vector<int> getAmbiguousPieces(int from, int to, int piece);
+
+        std::string getDisambiguation(int from, int to, int piece);
+
+
+        void writePGN() const;
+
+        void treeBack();
+
+        void treeNext();
+
+
     signals:
         void setPromotionMenu(bool show, int color);
 
@@ -61,6 +77,9 @@ class CalculBoard : public QObject{
         void promoteTo(int piece);
 
     private:
+        Tree tree;
+        Tree* currentTree;
+        
         std::array<int, 64> board;
         int colorPlaying;
         int indEnPassant;

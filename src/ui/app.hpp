@@ -1,7 +1,10 @@
 #pragma once
 
+#include <vector>
+
 #include <QApplication>
 #include <QGridLayout>
+#include <QPushButton>
 
 #include "../board/visualBoard.hpp"
 
@@ -20,4 +23,5 @@ class App{
         QApplication app;
         QWidget* window;
         VisualBoard* vboard;
+        std::vector<QPushButton*> buttons;
 };

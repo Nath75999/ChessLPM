@@ -43,7 +43,6 @@ qt_standard_project_setup()
 # Sources récursives
 file(GLOB_RECURSE SOURCES
     src/*.cpp
-    ui/*.cpp
 )
 
 # Traitement EXPLICITE des ressources
@@ -57,20 +56,10 @@ qt_add_executable(ChessLPM
 
 target_include_directories(ChessLPM PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/board
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/board/pieces
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui
 )
 
 target_link_libraries(ChessLPM PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
-)
-
-# Copie images (pour debug si besoin)
-add_custom_command(TARGET ChessLPM POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/images
-        $<TARGET_FILE_DIR:ChessLPM>/images
 )

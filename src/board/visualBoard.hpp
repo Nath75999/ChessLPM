@@ -13,6 +13,7 @@
 #include "../promotion/visualPromotion.hpp"
 
 class VisualBoard : public QWidget{
+    Q_OBJECT
     
     public:
         VisualBoard(QWidget* origin);
@@ -33,6 +34,13 @@ class VisualBoard : public QWidget{
         int pixelToCase(int x, int y);
 
 
+        void calculBoardPGN() const;
+
+        void calculBoardBack();
+
+        void calculBoardNext();
+
+
     public slots:
         void changePMS(bool show, int color); //promotion menu
 
@@ -43,10 +51,8 @@ class VisualBoard : public QWidget{
         void paintEvent(QPaintEvent*) override;
 
     private:
-        CalculBoard cboard;
-
         VisualPromotion* vPromotion;
-
+        CalculBoard cboard;
         QPixmap boardTexture;
         std::array<std::array<QPixmap, 7>, 2> pieceTextures;
         
