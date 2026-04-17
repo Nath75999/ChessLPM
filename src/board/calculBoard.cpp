@@ -1,7 +1,7 @@
 #include "calculBoard.hpp"
 #include <iostream>
 
-CalculBoard::CalculBoard() : board{0}, colorPlaying(WHITE), indEnPassant(-1), isWLCP(true), isWRCP(true), isBLRP(true), isBRRP(true) {
+CalculBoard::CalculBoard() : currentTree(&tree), board{0}, colorPlaying(WHITE), indEnPassant(-1), isWLCP(true), isWRCP(true), isBLRP(true), isBRRP(true) {
     this->board[0] = 10 * BLACK + ROOK;
     this->board[1] = 10 * BLACK + KNIGHT;
     this->board[2] = 10 * BLACK + BISHOP;
@@ -29,7 +29,71 @@ CalculBoard::CalculBoard() : board{0}, colorPlaying(WHITE), indEnPassant(-1), is
 std::array<int, 64> CalculBoard::getBoard() const {return this->board;}
 
 
-std::pair<int, int> CalculBoard::caseToIndex(const std::string& c) const {return {c[0] - 'a', 8 - static_cast<int>(c[1])};}
+std::string CalculBoard::indexToCase(int ind) const {
+    if (ind < 0 || ind > 63) return "";
+
+    std::string c = "";
+
+    c += 'a' + (ind % 8);
+    c += '8' - (ind / 8); 
+
+    return c;
+}
+
+std::string CalculBoard::moveToPGN(int from, int to, bool hasCaptured, bool hasCheck, bool hasMate, int promotionPiece, int piece){
+    if (from < 0 || from >= 64 || to < 0 || to >= 64) return "";
+
+    int type = piece % 10;
+
+    std::string result = "";
+
+    //castle
+    if (type == KING && abs(from - to) == 2) {
+        if (to > from) return "O-O";
+        else return "O-O-O";
+    }
+
+    //pieces
+    switch (type){
+        case KNIGHT: result += "N"; break;
+        case BISHOP: result += "B"; break;
+        case ROOK:   result += "R"; break;
+        case QUEEN:  result += "Q"; break;
+        case KING:   result += "K"; break;
+    }
+
+    if (type != PAWN) result += getDisambiguation(from, to, piece);
+
+    //capturing pawn
+    if (type == PAWN && hasCaptured) {
+        char file = 'a' + (from % 8);
+        result += file;
+    }
+
+    //captures
+    if (hasCaptured) result += "x";
+
+    //endcase
+    result += indexToCase(to);
+
+    //promotion
+    if (type == PAWN && promotionPiece != 0) {
+        result += "=";
+        switch (promotionPiece) {
+            case QUEEN: result += "Q"; break;
+            case ROOK:  result += "R"; break;
+            case BISHOP:result += "B"; break;
+            case KNIGHT:result += "N"; break;
+        }
+    }
+
+    //check & checkmate
+    if (hasMate) result += "#";
+    else if (hasCheck) result += "+";
+
+    return result;
+}
+
 
 bool CalculBoard::isMovePossible(int currentId, int newId){
     if (newId < 0 || newId >= 64) return false;
@@ -153,23 +217,63 @@ int CalculBoard::castle(int oldKing, int newKing) {
 void CalculBoard::handleMove(int currentId, int newId){
     if (!isMovePossible(currentId, newId) || this->board[currentId] == EMPTY) return;
 
+    bool hasCaptured = (board[newId] != EMPTY);
+
+    //en passant
+    if (board[currentId] % 10 == PAWN && newId == indEnPassant)
+        hasCaptured = true;
+
+    int piece = board[currentId];
+
+    //moving piece
     if (this->movePiece(currentId, newId)) return;
 
+    //CHECK / MATE
+    this->colorPlaying = !this->colorPlaying;
+
+    bool hasCheck = isKingInCheck();
+    bool hasMate = isKingCheckmated();
+
+    this->colorPlaying = !this->colorPlaying;
+
+    //PROMOTION
+    int promotion = 0;
+    if (board[newId] % 10 == PAWN) {
+        if ((board[newId] / 10 == WHITE && newId / 8 == 0) ||
+            (board[newId] / 10 == BLACK && newId / 8 == 7)) {
+            promotion = QUEEN;
+        }
+    }
+
+    //PGN
+    std::string move = moveToPGN(currentId, newId, hasCaptured, hasCheck, hasMate, promotion, piece);
+
+    std::cout << move << std::endl;
+
+    //Attention si mainline ou sous ligne
+    if (tree.getMove() == "") tree.setMove(move);
+    else{
+        currentTree->addLine(move);
+        currentTree = currentTree->getLine();
+    }
+
+    //update en passant ind
     if (board[newId] % 10 == PAWN){
         int dir = (board[newId] / 10 == WHITE) ? N : S;
         indEnPassant = (currentId + 2 * dir == newId) ? currentId + dir : -1;
     }
     else indEnPassant = -1;
 
+    //change color playing
     this->colorPlaying = !this->colorPlaying;
 
-    //staleeate
+    //verif stalemate
     if (!isKingInCheck() && !hasLegalMoves()){
         emit sendEndGame();
         return;
     }
 
-    //checkmate
+    //verif checkmate
     if (this->isKingCheckmated()) emit sendEndGame();
 }
 
@@ -203,7 +307,7 @@ bool CalculBoard::pawnMove(int currentId, int newId){
         if (newId == captureLeft && board[newId] != EMPTY && board[newId] / 10 != color)
             return true;
 
-        // en passant LEFT (fixed)
+        // en passant LEFT
         if (indEnPassant != -1 &&
             newId == captureLeft &&
             newId == indEnPassant &&
@@ -222,7 +326,7 @@ bool CalculBoard::pawnMove(int currentId, int newId){
         if (newId == captureRight && board[newId] != EMPTY && board[newId] / 10 != color)
             return true;
 
-        // en passant RIGHT (fixed)
+        // en passant RIGHT
         if (indEnPassant != -1 &&
             newId == captureRight &&
             newId == indEnPassant &&
@@ -314,6 +418,7 @@ void CalculBoard::promoteTo(int piece){
     }
     //error, shouldn't go there
 }
+
 
 bool CalculBoard::isCaseAttacked(int idCase, int color) const {
     if (idCase < 0 || idCase >= 64) return false; //error
@@ -437,3 +542,67 @@ bool CalculBoard::hasLegalMoves(){
     // No legal moves found
     return false;
 }
+
+std::vector<int> CalculBoard::getAmbiguousPieces(int from, int to, int piece){
+    std::vector<int> res;
+
+    int type = piece % 10;
+    int color = piece / 10;
+
+    for (int i = 0; i < 64; i++){
+        if (i == from) continue;
+
+        if (board[i] == EMPTY) continue;
+        if (board[i] / 10 != color) continue;
+        if (board[i] % 10 != type) continue;
+
+        if (isMovePossible(i, to)) res.push_back(i);
+        std::cout << "Testing piece at " << i << std::endl;
+        std::cout << "Move possible? " << isMovePossible(i, to) << std::endl;
+    }
+
+    std::cout << "Ambiguous pieces count: " << res.size() << std::endl;
+    return res;
+}
+
+std::string CalculBoard::getDisambiguation(int from, int to, int piece){
+    auto others = getAmbiguousPieces(from, to, piece);
+
+    if (others.empty()) return "";
+
+    int fromFile = from % 8;
+    int fromRank = from / 8;
+
+    bool sameFile = false;
+    bool sameRank = false;
+
+    for (int id : others){
+        if (id % 8 == fromFile) sameFile = true;
+        if (id / 8 == fromRank) sameRank = true;
+    }
+
+    std::string res;
+
+    if (!sameFile) res += ('a' + fromFile);
+    else if (!sameRank) res += ('1' + fromRank);
+    else {
+        res += ('a' + fromFile);
+        res += ('1' + fromRank);
+    }
+
+    std::cout << "Ambiguous count: " << others.size() << std::endl;
+    return res;
+}
+
+void CalculBoard::writePGN() const {
+    std::ofstream gameFile = std::ofstream("src/data/gameData.txt");
+
+    if (!gameFile.is_open()) std::cout<<"error when openening file\n";
+
+    tree.writeData(gameFile);
+    gameFile.flush();
+}
+
+void CalculBoard::treeBack() {if (currentTree) currentTree = currentTree->previous();}
+
+void CalculBoard::treeNext() {if (currentTree) currentTree = currentTree->next();}

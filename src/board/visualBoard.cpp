@@ -90,6 +90,13 @@ int VisualBoard::pixelToCase(int x, int y){
 }
 
 
+void VisualBoard::calculBoardPGN() const {this->cboard.writePGN();}
+
+void VisualBoard::calculBoardBack() {this->cboard.treeBack();}
+
+void VisualBoard::calculBoardNext() {this->cboard.treeNext();}
+
+
 void VisualBoard::paintEvent(QPaintEvent*){
     QPainter painter(this);
 
